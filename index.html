@@ -163,7 +163,10 @@
 
             <!-- Theme Toggle -->
             <button id="btn-theme" class="text-slate-600 dark:text-slate-400 hover:text-brand-600 dark:hover:text-brand-400 transition-colors p-2 rounded-md hover:bg-slate-100 dark:hover:bg-slate-800" aria-label="Toggle Dark Mode">
-              <i id="theme-icon" data-lucide="moon" class="w-5 h-5" aria-hidden="true"></i>
+              <!-- Moon icon shown in light mode (to switch to dark) -->
+              <i data-lucide="moon" class="w-5 h-5 block dark:hidden" aria-hidden="true"></i>
+              <!-- Sun icon shown in dark mode (to switch to light) -->
+              <i data-lucide="sun" class="w-5 h-5 hidden dark:block" aria-hidden="true"></i>
             </button>
 
             <div class="w-px h-6 bg-slate-200 dark:bg-slate-800 mx-1" role="separator"></div>
@@ -532,7 +535,6 @@
         btnClear: document.getElementById('btn-clear'),
         btnCopy: document.getElementById('btn-copy'),
         btnTheme: document.getElementById('btn-theme'),
-        themeIcon: document.getElementById('theme-icon'),
         btnLang: document.getElementById('btn-lang'),
         langLabel: document.getElementById('lang-label'),
         yearSpan: document.getElementById('year'),
@@ -696,13 +698,10 @@
       function updateTheme() {
         if (state.theme === 'dark') {
           document.documentElement.classList.add('dark');
-          els.themeIcon.setAttribute('data-lucide', 'sun');
         } else {
           document.documentElement.classList.remove('dark');
-          els.themeIcon.setAttribute('data-lucide', 'moon');
         }
         localStorage.setItem('theme', state.theme); // Persist theme
-        lucide.createIcons();
       }
 
       function updateLanguage() {
