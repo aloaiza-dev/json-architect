@@ -125,6 +125,14 @@
       .toast-exit {
         animation: fadeOut 0.3s ease-in forwards;
       }
+      /* Cookie Banner Animation */
+      @keyframes slideUp {
+        from { transform: translateY(100%); opacity: 0; }
+        to { transform: translateY(0); opacity: 1; }
+      }
+      .cookie-banner-enter {
+        animation: slideUp 0.5s ease-out forwards;
+      }
     </style>
 <script type="importmap">
 {
@@ -385,7 +393,39 @@
       </div>
     </footer>
 
+    <!-- Cookie Banner -->
+    <div id="cookie-banner" class="hidden fixed bottom-0 left-0 right-0 bg-white dark:bg-slate-900 border-t border-slate-200 dark:border-slate-800 p-4 shadow-[0_-4px_20px_rgba(0,0,0,0.1)] z-[60] cookie-banner-enter">
+      <div class="max-w-7xl mx-auto flex flex-col md:flex-row items-center justify-between gap-4">
+        <div class="text-sm text-slate-600 dark:text-slate-400 text-center md:text-left">
+          <p data-i18n="cookies.text">We use cookies to analyze traffic and improve your experience. </p>
+          <a href="privacy.html" class="text-brand-600 dark:text-brand-400 hover:underline" data-i18n="cookies.link">Learn more</a>.
+        </div>
+        <div class="flex items-center gap-3">
+          <button id="btn-decline-cookies" class="px-4 py-2 text-sm font-medium text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-md transition-colors" data-i18n="cookies.decline">Necessary Only</button>
+          <button id="btn-accept-cookies" class="px-4 py-2 text-sm font-medium bg-brand-600 hover:bg-brand-700 text-white rounded-md transition-colors shadow-sm" data-i18n="cookies.accept">Accept All</button>
+        </div>
+      </div>
+    </div>
+
     <script type="module">
+      // --- Google Analytics 4 Loader ---
+      function loadAnalytics() {
+        const script1 = document.createElement('script');
+        script1.async = true;
+        script1.src = 'https://www.googletagmanager.com/gtag/js?id=G-JXH2QLM49L';
+        document.head.appendChild(script1);
+
+        const script2 = document.createElement('script');
+        script2.innerHTML = `
+          window.dataLayer = window.dataLayer || [];
+          function gtag(){dataLayer.push(arguments);}
+          gtag('js', new Date());
+          gtag('config', 'G-JXH2QLM49L');
+        `;
+        document.head.appendChild(script2);
+        console.log('GA4 Loaded');
+      }
+
       // --- Translations ---
       const translations = {
         en: {
@@ -445,6 +485,12 @@
             privacy: "Privacy",
             terms: "Terms",
             github: "GitHub"
+          },
+          cookies: {
+            text: "We use cookies to analyze traffic and improve your experience. ",
+            link: "Learn more",
+            decline: "Necessary Only",
+            accept: "Accept All"
           }
         },
         es: {
@@ -504,6 +550,12 @@
             privacy: "Privacidad",
             terms: "Términos",
             github: "GitHub"
+          },
+          cookies: {
+            text: "Utilizamos cookies para analizar el tráfico y mejorar tu experiencia. ",
+            link: "Leer más",
+            decline: "Solo Necesarias",
+            accept: "Aceptar Todas"
           }
         }
       };
@@ -538,7 +590,10 @@
         btnLang: document.getElementById('btn-lang'),
         langLabel: document.getElementById('lang-label'),
         yearSpan: document.getElementById('year'),
-        toastContainer: document.getElementById('toast-container')
+        toastContainer: document.getElementById('toast-container'),
+        cookieBanner: document.getElementById('cookie-banner'),
+        btnAcceptCookies: document.getElementById('btn-accept-cookies'),
+        btnDeclineCookies: document.getElementById('btn-decline-cookies')
       };
 
       els.yearSpan.textContent = new Date().getFullYear();
@@ -664,6 +719,13 @@
 
           if (showFeedback) {
             showToast(minify ? t.editor.minifySuccess : t.editor.formatSuccess, 'success');
+            // GA4 Event Tracking
+            if (typeof gtag === 'function') {
+              gtag('event', minify ? 'minify_json' : 'format_json', {
+                'event_category': 'Editor',
+                'event_label': minify ? 'Minify' : 'Format'
+              });
+            }
           }
 
         } catch (err) {
@@ -690,6 +752,12 @@
 
           if (showFeedback) {
             showToast(t.editor.errorInvalid, 'error');
+            if (typeof gtag === 'function') {
+               gtag('event', 'validation_error', {
+                 'event_category': 'Editor',
+                 'event_label': 'Error'
+               });
+            }
           }
         }
       }
@@ -732,6 +800,30 @@
         els.btnLang.setAttribute('aria-label', t.header.ariaLang);
         document.querySelector('a[href="https://github.com/aloaiza-dev"]').setAttribute('aria-label', t.header.ariaGithub);
       }
+
+      // --- Logic: Cookies ---
+      function initCookies() {
+        const consent = localStorage.getItem('cookie_consent');
+        if (consent === 'granted') {
+          loadAnalytics();
+        } else if (consent === 'denied') {
+          // Do nothing, GA4 not loaded
+        } else {
+          // No consent yet, show banner
+          els.cookieBanner.classList.remove('hidden');
+        }
+      }
+
+      els.btnAcceptCookies.addEventListener('click', () => {
+        localStorage.setItem('cookie_consent', 'granted');
+        els.cookieBanner.classList.add('hidden');
+        loadAnalytics();
+      });
+
+      els.btnDeclineCookies.addEventListener('click', () => {
+        localStorage.setItem('cookie_consent', 'denied');
+        els.cookieBanner.classList.add('hidden');
+      });
 
       // --- Event Listeners ---
       
@@ -783,6 +875,14 @@
         navigator.clipboard.writeText(els.outputText.value);
         document.getElementById('icon-copy').classList.add('hidden');
         document.getElementById('icon-check').classList.remove('hidden');
+        
+        if (typeof gtag === 'function') {
+           gtag('event', 'copy_json', {
+             'event_category': 'Editor',
+             'event_label': 'Copy'
+           });
+        }
+
         setTimeout(() => {
           document.getElementById('icon-copy').classList.remove('hidden');
           document.getElementById('icon-check').classList.add('hidden');
@@ -801,6 +901,12 @@
           els.inputPlaceholder.style.display = 'none';
           validateAndFormat(false, false); // Auto-validate silently
           showToast(translations[state.lang].editor.uploadSuccess, 'success');
+          if (typeof gtag === 'function') {
+             gtag('event', 'upload_file', {
+               'event_category': 'Editor',
+               'event_label': 'Upload'
+             });
+          }
         };
         reader.readAsText(file);
         e.target.value = '';
@@ -820,6 +926,7 @@
       // Init
       updateTheme();
       updateLanguage();
+      initCookies();
       lucide.createIcons();
     </script>
   </body>

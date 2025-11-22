@@ -6,7 +6,7 @@
   <title>Terms of Service | JSON Architect</title>
   <meta name="description" content="Terms of Service for JSON Architect." />
   <meta name="robots" content="noindex, follow" />
-  
+
   <script src="https://cdn.tailwindcss.com"></script>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
@@ -28,6 +28,15 @@
       },
     };
   </script>
+  <style>
+    @keyframes slideUp {
+        from { transform: translateY(100%); opacity: 0; }
+        to { transform: translateY(0); opacity: 1; }
+    }
+    .cookie-banner-enter {
+        animation: slideUp 0.5s ease-out forwards;
+    }
+  </style>
 </head>
 <body class="bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-slate-50 font-sans antialiased transition-colors duration-300 flex flex-col min-h-screen">
 
@@ -114,11 +123,51 @@
     </div>
   </footer>
 
+   <!-- Cookie Banner -->
+   <div id="cookie-banner" class="hidden fixed bottom-0 left-0 right-0 bg-white dark:bg-slate-900 border-t border-slate-200 dark:border-slate-800 p-4 shadow-[0_-4px_20px_rgba(0,0,0,0.1)] z-[60] cookie-banner-enter">
+    <div class="max-w-7xl mx-auto flex flex-col md:flex-row items-center justify-between gap-4">
+      <div class="text-sm text-slate-600 dark:text-slate-400 text-center md:text-left">
+        <p data-i18n="cookies.text">We use cookies to analyze traffic and improve your experience. </p>
+        <a href="privacy.html" class="text-brand-600 dark:text-brand-400 hover:underline" data-i18n="cookies.link">Learn more</a>.
+      </div>
+      <div class="flex items-center gap-3">
+        <button id="btn-decline-cookies" class="px-4 py-2 text-sm font-medium text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-md transition-colors" data-i18n="cookies.decline">Necessary Only</button>
+        <button id="btn-accept-cookies" class="px-4 py-2 text-sm font-medium bg-brand-600 hover:bg-brand-700 text-white rounded-md transition-colors shadow-sm" data-i18n="cookies.accept">Accept All</button>
+      </div>
+    </div>
+  </div>
+
   <script>
+      // --- Google Analytics 4 Loader ---
+      function loadAnalytics() {
+        const script1 = document.createElement('script');
+        script1.async = true;
+        script1.src = 'https://www.googletagmanager.com/gtag/js?id=G-JXH2QLM49L';
+        document.head.appendChild(script1);
+
+        const script2 = document.createElement('script');
+        script2.innerHTML = `
+          window.dataLayer = window.dataLayer || [];
+          function gtag(){dataLayer.push(arguments);}
+          gtag('js', new Date());
+          gtag('config', 'G-JXH2QLM49L');
+        `;
+        document.head.appendChild(script2);
+        console.log('GA4 Loaded');
+      }
+
       // Simple shared logic for static pages
       const translations = {
-        en: { header: { titleSuffix: "Architect" }, footer: { rights: "JSON Architect.", builtWith: "Built with Vanilla JS.", privacy: "Privacy", terms: "Terms", github: "GitHub" } },
-        es: { header: { titleSuffix: "Architect" }, footer: { rights: "JSON Architect.", builtWith: "Construido con Vanilla JS.", privacy: "Privacidad", terms: "Términos", github: "GitHub" } }
+        en: { 
+            header: { titleSuffix: "Architect" }, 
+            footer: { rights: "JSON Architect.", builtWith: "Built with Vanilla JS.", privacy: "Privacy", terms: "Terms", github: "GitHub" },
+            cookies: { text: "We use cookies to analyze traffic and improve your experience. ", link: "Learn more", decline: "Necessary Only", accept: "Accept All" }
+        },
+        es: { 
+            header: { titleSuffix: "Architect" }, 
+            footer: { rights: "JSON Architect.", builtWith: "Construido con Vanilla JS.", privacy: "Privacidad", terms: "Términos", github: "GitHub" },
+            cookies: { text: "Utilizamos cookies para analizar el tráfico y mejorar tu experiencia. ", link: "Leer más", decline: "Solo Necesarias", accept: "Aceptar Todas" }
+        }
       };
 
       const state = {
@@ -132,7 +181,10 @@
         langLabel: document.getElementById('lang-label'),
         contentEn: document.getElementById('content-en'),
         contentEs: document.getElementById('content-es'),
-        yearSpan: document.getElementById('year')
+        yearSpan: document.getElementById('year'),
+        cookieBanner: document.getElementById('cookie-banner'),
+        btnAcceptCookies: document.getElementById('btn-accept-cookies'),
+        btnDeclineCookies: document.getElementById('btn-decline-cookies')
       };
 
       els.yearSpan.textContent = new Date().getFullYear();
@@ -170,6 +222,28 @@
         });
       }
 
+      function initCookies() {
+        const consent = localStorage.getItem('cookie_consent');
+        if (consent === 'granted') {
+          loadAnalytics();
+        } else if (consent === 'denied') {
+          // Do nothing, GA4 not loaded
+        } else {
+          els.cookieBanner.classList.remove('hidden');
+        }
+      }
+
+      els.btnAcceptCookies.addEventListener('click', () => {
+        localStorage.setItem('cookie_consent', 'granted');
+        els.cookieBanner.classList.add('hidden');
+        loadAnalytics();
+      });
+
+      els.btnDeclineCookies.addEventListener('click', () => {
+        localStorage.setItem('cookie_consent', 'denied');
+        els.cookieBanner.classList.add('hidden');
+      });
+
       els.btnTheme.addEventListener('click', () => {
         state.theme = state.theme === 'dark' ? 'light' : 'dark';
         updateTheme();
@@ -182,6 +256,7 @@
 
       updateTheme();
       updateLanguage();
+      initCookies();
       lucide.createIcons();
   </script>
 </body>
