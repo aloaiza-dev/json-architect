@@ -70,6 +70,20 @@
         -ms-overflow-style: none;
         scrollbar-width: none;
       }
+      @keyframes slideIn {
+        from { opacity: 0; transform: translateX(20px); }
+        to { opacity: 1; transform: translateX(0); }
+      }
+      @keyframes fadeOut {
+        from { opacity: 1; transform: translateX(0); }
+        to { opacity: 0; transform: translateX(20px); }
+      }
+      .toast-enter {
+        animation: slideIn 0.3s ease-out forwards;
+      }
+      .toast-exit {
+        animation: fadeOut 0.3s ease-in forwards;
+      }
     </style>
     <script type="importmap">
 {
@@ -84,6 +98,9 @@
 </script>
   </head>
   <body class="bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-slate-50 font-sans antialiased selection:bg-brand-500/30 selection:text-brand-700 dark:selection:text-brand-100 transition-colors duration-300 flex flex-col min-h-screen">
+
+    <!-- Toast Container -->
+    <div id="toast-container" class="fixed bottom-6 right-6 z-[100] flex flex-col gap-3 pointer-events-none"></div>
 
     <!-- Header -->
     <header class="fixed top-0 left-0 right-0 z-50 border-b border-slate-200 dark:border-slate-800 bg-white/80 dark:bg-slate-950/80 backdrop-blur-md transition-colors duration-300">
@@ -353,7 +370,10 @@
             outputPlaceholder: "Formatted output will appear here...",
             errorInvalid: "Invalid JSON",
             errorRepairFailed: "AI could not repair this JSON.",
-            repairSuccess: "JSON repaired successfully"
+            repairSuccess: "JSON repaired successfully",
+            formatSuccess: "JSON valid and formatted",
+            minifySuccess: "JSON minified successfully",
+            uploadSuccess: "File loaded successfully"
           },
           features: {
             secureTitle: "Private & Secure",
@@ -409,7 +429,10 @@
             outputPlaceholder: "El resultado formateado aparecerá aquí...",
             errorInvalid: "JSON Inválido",
             errorRepairFailed: "La IA no pudo reparar este JSON.",
-            repairSuccess: "JSON reparado exitosamente"
+            repairSuccess: "JSON reparado exitosamente",
+            formatSuccess: "JSON válido y formateado",
+            minifySuccess: "JSON minificado exitosamente",
+            uploadSuccess: "Archivo cargado exitosamente"
           },
           features: {
             secureTitle: "Privado y Seguro",
@@ -448,6 +471,14 @@
         }
       };
 
+      // --- Helper: Safe API Key Access ---
+      const getApiKey = () => {
+        if (typeof process !== "undefined" && process.env) {
+          return process.env.API_KEY;
+        }
+        return "";
+      };
+
       // --- State & Initialization ---
       const state = {
         lang: 'en',
@@ -479,10 +510,42 @@
         langLabel: document.getElementById('lang-label'),
         yearSpan: document.getElementById('year'),
         iconRepair: document.getElementById('icon-repair'),
-        iconRepairLoading: document.getElementById('icon-repair-loading')
+        iconRepairLoading: document.getElementById('icon-repair-loading'),
+        toastContainer: document.getElementById('toast-container')
       };
 
       els.yearSpan.textContent = new Date().getFullYear();
+
+      // --- Logic: Toast Notifications ---
+      function showToast(message, type = 'success') {
+        const toast = document.createElement('div');
+        const isError = type === 'error';
+        
+        const bgColor = isError ? 'bg-red-50 dark:bg-red-950/90' : 'bg-white dark:bg-slate-800';
+        const borderColor = isError ? 'border-red-200 dark:border-red-900' : 'border-slate-200 dark:border-slate-700';
+        const textColor = isError ? 'text-red-800 dark:text-red-200' : 'text-slate-800 dark:text-slate-200';
+        const iconName = isError ? 'alert-circle' : 'check-circle';
+        const iconColor = isError ? 'text-red-500 dark:text-red-400' : 'text-green-500 dark:text-green-400';
+
+        toast.className = `${bgColor} ${borderColor} ${textColor} border shadow-lg rounded-lg p-4 flex items-center gap-3 transform transition-all duration-300 toast-enter opacity-0 pointer-events-auto max-w-sm w-full backdrop-blur-sm`;
+        
+        toast.innerHTML = `
+          <i data-lucide="${iconName}" class="w-5 h-5 ${iconColor} shrink-0"></i>
+          <p class="text-sm font-medium">${message}</p>
+        `;
+
+        els.toastContainer.appendChild(toast);
+        lucide.createIcons({ root: toast });
+
+        // Remove after delay
+        setTimeout(() => {
+          toast.classList.remove('toast-enter');
+          toast.classList.add('toast-exit');
+          toast.addEventListener('animationend', () => {
+            if(toast.parentElement) toast.parentElement.removeChild(toast);
+          });
+        }, 3000);
+      }
 
       // --- Logic: Syntax Highlighting ---
       function highlightCode(code, container, errorLine = null) {
@@ -545,9 +608,10 @@
         return text.substring(0, index).split('\n').length - 1;
       }
 
-      function validateAndFormat(minify = false) {
+      function validateAndFormat(minify = false, showFeedback = false) {
         const jsonString = els.inputText.value;
         state.input = jsonString;
+        const t = translations[state.lang];
 
         if (!jsonString.trim()) {
           els.outputText.value = '';
@@ -572,8 +636,11 @@
           highlightCode(state.input, els.inputHighlight, null); // clear error highlights
           els.outputPlaceholder.style.display = 'none';
 
+          if (showFeedback) {
+            showToast(minify ? t.editor.minifySuccess : t.editor.formatSuccess, 'success');
+          }
+
         } catch (err) {
-          const t = translations[state.lang];
           const msg = err.message || t.editor.errorInvalid;
           els.errorMessage.textContent = msg;
           els.errorBanner.classList.remove('hidden');
@@ -595,17 +662,29 @@
           
           state.errorLine = line;
           highlightCode(state.input, els.inputHighlight, line);
+
+          if (showFeedback) {
+            showToast(t.editor.errorInvalid, 'error');
+          }
         }
       }
 
       // --- Logic: AI Repair ---
       async function repairJson() {
+        const t = translations[state.lang];
+        const apiKey = getApiKey();
+        
+        if (!apiKey) {
+          showToast("API Key is missing. Cannot use AI features.", "error");
+          return;
+        }
+
         els.btnRepair.disabled = true;
         els.iconRepair.classList.add('hidden');
         els.iconRepairLoading.classList.remove('hidden');
 
         try {
-          const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+          const ai = new GoogleGenAI({ apiKey: apiKey });
           const response = await ai.models.generateContent({
             model: 'gemini-2.5-flash',
             contents: `Fix the following JSON string. It may have syntax errors like missing quotes, trailing commas, or invalid formatting. Return ONLY the valid, minified JSON string. Do not wrap it in markdown code blocks. Broken JSON: ${state.input}`,
@@ -618,13 +697,14 @@
           
           text = text.trim();
           els.inputText.value = text;
-          validateAndFormat(false);
+          validateAndFormat(false, false); // Validate but no toast yet
+          showToast(t.editor.repairSuccess, 'success');
           
         } catch (error) {
           console.error(error);
-          const t = translations[state.lang];
           els.errorMessage.textContent = t.editor.errorRepairFailed;
           els.errorBanner.classList.remove('hidden');
+          showToast(t.editor.errorRepairFailed, 'error');
         } finally {
           els.iconRepair.classList.remove('hidden');
           els.iconRepairLoading.classList.add('hidden');
@@ -688,12 +768,12 @@
 
       // Paste Handling
       els.inputText.addEventListener('paste', () => {
-        setTimeout(() => validateAndFormat(false), 50);
+        setTimeout(() => validateAndFormat(false, false), 50); // Auto-validate silently
       });
 
       // Buttons
-      els.btnFormat.addEventListener('click', () => validateAndFormat(false));
-      els.btnMinify.addEventListener('click', () => validateAndFormat(true));
+      els.btnFormat.addEventListener('click', () => validateAndFormat(false, true)); // Validate with feedback
+      els.btnMinify.addEventListener('click', () => validateAndFormat(true, true)); // Minify with feedback
       els.btnRepair.addEventListener('click', repairJson);
       els.btnClear.addEventListener('click', () => {
         els.inputText.value = '';
@@ -729,7 +809,8 @@
           els.inputText.value = ev.target.result;
           state.input = ev.target.result;
           els.inputPlaceholder.style.display = 'none';
-          validateAndFormat(false);
+          validateAndFormat(false, false); // Auto-validate silently
+          showToast(translations[state.lang].editor.uploadSuccess, 'success');
         };
         reader.readAsText(file);
         e.target.value = '';
