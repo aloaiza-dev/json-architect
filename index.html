@@ -11,6 +11,7 @@
       href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap"
       rel="stylesheet"
     />
+    <script src="https://unpkg.com/lucide@latest"></script>
     <script>
       tailwind.config = {
         darkMode: 'class',
@@ -40,7 +41,7 @@
       };
     </script>
     <style>
-      /* Custom Scrollbar for the editor areas */
+      /* Custom Scrollbar */
       .custom-scrollbar::-webkit-scrollbar {
         width: 8px;
         height: 8px;
@@ -61,20 +62,694 @@
       .dark .custom-scrollbar::-webkit-scrollbar-thumb:hover {
         background: #64748b;
       }
+      /* Hide scrollbar for highlight layer but allow scrolling */
+      .no-scrollbar::-webkit-scrollbar {
+        display: none;
+      }
+      .no-scrollbar {
+        -ms-overflow-style: none;
+        scrollbar-width: none;
+      }
     </style>
-  <script type="importmap">
+    <script type="importmap">
 {
   "imports": {
-    "react/": "https://aistudiocdn.com/react@^19.2.0/",
+    "@google/genai": "https://aistudiocdn.com/@google/genai@^1.30.0",
     "react": "https://aistudiocdn.com/react@^19.2.0",
-    "lucide-react": "https://aistudiocdn.com/lucide-react@^0.554.0",
     "react-dom/": "https://aistudiocdn.com/react-dom@^19.2.0/",
-    "@google/genai": "https://aistudiocdn.com/@google/genai@^1.30.0"
+    "react/": "https://aistudiocdn.com/react@^19.2.0/",
+    "lucide-react": "https://aistudiocdn.com/lucide-react@^0.554.0"
   }
 }
 </script>
-</head>
-  <body class="bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-slate-50 font-sans antialiased selection:bg-brand-500/30 selection:text-brand-700 dark:selection:text-brand-100 transition-colors duration-300">
-    <div id="root"></div>
+  </head>
+  <body class="bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-slate-50 font-sans antialiased selection:bg-brand-500/30 selection:text-brand-700 dark:selection:text-brand-100 transition-colors duration-300 flex flex-col min-h-screen">
+
+    <!-- Header -->
+    <header class="fixed top-0 left-0 right-0 z-50 border-b border-slate-200 dark:border-slate-800 bg-white/80 dark:bg-slate-950/80 backdrop-blur-md transition-colors duration-300">
+      <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div class="flex items-center justify-between h-16">
+          <div class="flex items-center gap-2">
+            <div class="p-2 bg-brand-600 rounded-lg shadow-md">
+              <i data-lucide="file-json" class="w-5 h-5 text-white"></i>
+            </div>
+            <span class="text-xl font-bold tracking-tight text-slate-900 dark:text-slate-100">
+              JSON<span class="text-brand-600 dark:text-brand-400" data-i18n="header.titleSuffix">Architect</span>
+            </span>
+          </div>
+          
+          <div class="flex items-center gap-3">
+            <!-- Language Toggle -->
+            <button id="btn-lang" class="flex items-center gap-1 text-slate-600 dark:text-slate-400 hover:text-brand-600 dark:hover:text-brand-400 transition-colors p-2 rounded-md hover:bg-slate-100 dark:hover:bg-slate-800">
+              <i data-lucide="languages" class="w-4 h-4"></i>
+              <span id="lang-label" class="text-sm font-medium">EN</span>
+            </button>
+
+            <!-- Theme Toggle -->
+            <button id="btn-theme" class="text-slate-600 dark:text-slate-400 hover:text-brand-600 dark:hover:text-brand-400 transition-colors p-2 rounded-md hover:bg-slate-100 dark:hover:bg-slate-800">
+              <i id="theme-icon" data-lucide="moon" class="w-5 h-5"></i>
+            </button>
+
+            <div class="w-px h-6 bg-slate-200 dark:bg-slate-800 mx-1"></div>
+
+            <a href="https://github.com" target="_blank" rel="noreferrer" class="text-slate-600 dark:text-slate-400 hover:text-brand-600 dark:hover:text-white transition-colors p-2">
+              <i data-lucide="github" class="w-5 h-5"></i>
+            </a>
+          </div>
+        </div>
+      </div>
+    </header>
+
+    <!-- Main Content -->
+    <main class="flex-grow pt-24 pb-12">
+      <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mb-20">
+        
+        <!-- Hero -->
+        <div class="text-center mb-10">
+          <h1 class="text-4xl md:text-5xl font-extrabold text-slate-900 dark:text-white tracking-tight mb-4">
+            <span data-i18n="hero.titleStart">Format JSON</span> <span class="text-transparent bg-clip-text bg-gradient-to-r from-brand-600 to-indigo-600 dark:from-brand-400 dark:to-indigo-500" data-i18n="hero.titleEnd">Instantly</span>
+          </h1>
+          <p class="text-lg text-slate-600 dark:text-slate-400 max-w-2xl mx-auto" data-i18n="hero.subtitle">
+            Validate, minify, and beautify your JSON data. Featuring AI-powered repair for broken syntax.
+          </p>
+        </div>
+        
+        <!-- Editor Container -->
+        <div class="bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 shadow-xl dark:shadow-2xl overflow-hidden flex flex-col h-[80vh] min-h-[600px] transition-colors duration-300">
+          
+          <!-- Toolbar -->
+          <div class="bg-slate-50 dark:bg-slate-900 border-b border-slate-200 dark:border-slate-800 p-3 flex flex-wrap items-center justify-between gap-3 transition-colors duration-300">
+            <div class="flex items-center gap-2">
+              <button id="btn-format" class="inline-flex items-center justify-center px-4 py-2 rounded-md text-sm font-medium transition-colors focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-white dark:focus:ring-offset-slate-900 bg-brand-600 hover:bg-brand-700 text-white focus:ring-brand-500">
+                <i data-lucide="maximize-2" class="w-4 h-4 mr-2"></i>
+                <span data-i18n="editor.beautify">Validate & Format</span>
+              </button>
+              <button id="btn-minify" class="inline-flex items-center justify-center px-4 py-2 rounded-md text-sm font-medium transition-colors focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-white dark:focus:ring-offset-slate-900 bg-white dark:bg-slate-800 hover:bg-slate-100 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 focus:ring-slate-500 border border-slate-200 dark:border-slate-700 shadow-sm">
+                <i data-lucide="minimize-2" class="w-4 h-4 mr-2"></i>
+                <span data-i18n="editor.minify">Minify</span>
+              </button>
+              <button id="btn-repair" disabled class="inline-flex items-center justify-center px-4 py-2 rounded-md text-sm font-medium transition-colors focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-white dark:focus:ring-offset-slate-900 disabled:opacity-50 disabled:cursor-not-allowed bg-gradient-to-r from-indigo-500 to-purple-600 hover:from-indigo-600 hover:to-purple-700 text-white shadow-lg shadow-purple-500/20 border border-purple-400/20">
+                <i id="icon-repair" data-lucide="sparkles" class="w-4 h-4 mr-2"></i>
+                <i id="icon-repair-loading" data-lucide="loader-2" class="w-4 h-4 mr-2 animate-spin hidden"></i>
+                <span data-i18n="editor.repair">AI Repair</span>
+              </button>
+            </div>
+
+            <div class="flex items-center gap-2">
+              <input type="file" id="file-upload" class="hidden" accept=".json,.txt" />
+              <button id="btn-upload" class="inline-flex items-center justify-center px-4 py-2 rounded-md text-sm font-medium transition-colors focus:outline-none bg-transparent hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200">
+                <i data-lucide="file-up" class="w-4 h-4 mr-2"></i>
+                <span data-i18n="editor.upload">Upload</span>
+              </button>
+              <button id="btn-clear" class="inline-flex items-center justify-center px-4 py-2 rounded-md text-sm font-medium transition-colors focus:outline-none bg-transparent hover:text-red-700 dark:hover:text-red-300 hover:bg-red-50 dark:hover:bg-red-950/30 text-red-600 dark:text-red-400">
+                <i data-lucide="trash-2" class="w-4 h-4 mr-2"></i>
+                <span data-i18n="editor.clear">Clear</span>
+              </button>
+            </div>
+          </div>
+
+          <!-- Editor Area -->
+          <div class="flex-1 flex flex-col md:flex-row overflow-hidden relative">
+            
+            <!-- Input Pane -->
+            <div class="flex-1 flex flex-col min-h-0 relative border-b md:border-b-0 md:border-r border-slate-200 dark:border-slate-800 group transition-colors duration-300">
+              <div class="absolute top-2 right-3 z-10 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none text-xs text-slate-500 font-mono bg-slate-100 dark:bg-slate-900/80 px-2 py-1 rounded border border-slate-200 dark:border-slate-800" data-i18n="editor.inputLabel">
+                INPUT
+              </div>
+              
+              <div class="relative w-full h-full bg-white dark:bg-slate-950 overflow-hidden font-mono text-sm">
+                <!-- Highlight Layer -->
+                <pre id="input-highlight" aria-hidden="true" class="absolute inset-0 w-full h-full m-0 py-4 pointer-events-none overflow-hidden whitespace-pre leading-6 no-scrollbar" style="tab-size: 2;"></pre>
+                <!-- Input Layer -->
+                <textarea id="input-textarea" class="absolute inset-0 w-full h-full m-0 py-4 px-4 resize-none bg-transparent border-0 focus:ring-0 text-transparent caret-slate-900 dark:caret-slate-100 selection:text-transparent leading-6 whitespace-pre custom-scrollbar outline-none" style="tab-size: 2;" spellcheck="false" autocapitalize="off" autocomplete="off" autocorrect="off"></textarea>
+                 <!-- Placeholder visual shim -->
+                 <div id="input-placeholder" class="absolute top-4 left-4 text-slate-400 italic pointer-events-none" data-i18n="editor.inputPlaceholder">Paste your JSON here...</div>
+              </div>
+
+              <!-- Error Notification -->
+              <div id="error-banner" class="hidden absolute bottom-0 left-0 right-0 z-20 bg-red-50/95 dark:bg-red-950/90 border-t border-red-200 dark:border-red-900/50 p-2 text-red-700 dark:text-red-200 text-xs font-mono flex items-center gap-2 backdrop-blur-sm animate-in slide-in-from-bottom-2 duration-200">
+                <i data-lucide="alert-circle" class="w-4 h-4 shrink-0"></i>
+                <span id="error-message" class="truncate"></span>
+              </div>
+            </div>
+
+            <!-- Divider Icon -->
+            <div class="hidden md:flex flex-col justify-center items-center w-0 z-10">
+              <div class="absolute bg-slate-100 dark:bg-slate-800 rounded-full p-1 border border-slate-300 dark:border-slate-700 text-slate-500 dark:text-slate-400 shadow-sm transition-colors duration-300">
+                 <i data-lucide="arrow-right-left" class="w-4 h-4"></i>
+              </div>
+            </div>
+
+            <!-- Output Pane -->
+            <div class="flex-1 flex flex-col min-h-0 relative group bg-slate-50/50 dark:bg-slate-950/50 transition-colors duration-300">
+               <div class="absolute top-2 right-3 z-10 flex items-center gap-2">
+                  <span class="opacity-0 group-hover:opacity-100 transition-opacity text-xs text-slate-500 font-mono bg-slate-100 dark:bg-slate-900/80 px-2 py-1 rounded pointer-events-none border border-slate-200 dark:border-slate-800" data-i18n="editor.outputLabel">
+                    OUTPUT
+                  </span>
+                  <button id="btn-copy" class="p-1.5 bg-white dark:bg-slate-800 hover:bg-slate-100 dark:hover:bg-slate-700 text-slate-600 dark:text-slate-300 rounded-md transition-colors border border-slate-200 dark:border-slate-700 shadow-sm">
+                    <i id="icon-copy" data-lucide="copy" class="w-4 h-4"></i>
+                    <i id="icon-check" data-lucide="check" class="w-4 h-4 text-green-500 dark:text-green-400 hidden"></i>
+                  </button>
+               </div>
+               
+               <div class="relative w-full h-full overflow-hidden font-mono text-sm">
+                  <pre id="output-highlight" aria-hidden="true" class="absolute inset-0 w-full h-full m-0 py-4 pointer-events-none overflow-hidden whitespace-pre leading-6 no-scrollbar" style="tab-size: 2;"></pre>
+                  <textarea id="output-textarea" readonly class="absolute inset-0 w-full h-full m-0 py-4 px-4 resize-none bg-transparent border-0 focus:ring-0 text-transparent caret-slate-900 dark:caret-slate-100 selection:text-transparent leading-6 whitespace-pre custom-scrollbar outline-none cursor-text" style="tab-size: 2;" spellcheck="false"></textarea>
+                  <div id="output-placeholder" class="absolute top-4 left-4 text-slate-400 italic pointer-events-none" data-i18n="editor.outputPlaceholder">Formatted output will appear here...</div>
+               </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Features Section -->
+      <section class="py-20 bg-slate-50 dark:bg-slate-950 transition-colors duration-300">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div class="grid grid-cols-1 md:grid-cols-3 gap-8">
+            <!-- Feature 1 -->
+            <div class="bg-white dark:bg-slate-900/50 border border-slate-200 dark:border-slate-800 p-6 rounded-xl hover:shadow-lg hover:border-brand-200 dark:hover:bg-slate-900 transition-all duration-300">
+              <div class="bg-brand-50 dark:bg-slate-800 w-12 h-12 rounded-lg flex items-center justify-center mb-4 transition-colors duration-300">
+                <i data-lucide="shield-check" class="w-6 h-6 text-brand-600 dark:text-brand-400"></i>
+              </div>
+              <h3 class="text-lg font-semibold text-slate-900 dark:text-slate-100 mb-2" data-i18n="features.secureTitle">Private & Secure</h3>
+              <p class="text-slate-600 dark:text-slate-400 leading-relaxed" data-i18n="features.secureDesc">Processing happens right in your browser. Your data never leaves your device unless you opt-in for AI repair.</p>
+            </div>
+            <!-- Feature 2 -->
+            <div class="bg-white dark:bg-slate-900/50 border border-slate-200 dark:border-slate-800 p-6 rounded-xl hover:shadow-lg hover:border-brand-200 dark:hover:bg-slate-900 transition-all duration-300">
+              <div class="bg-brand-50 dark:bg-slate-800 w-12 h-12 rounded-lg flex items-center justify-center mb-4 transition-colors duration-300">
+                <i data-lucide="zap" class="w-6 h-6 text-amber-500 dark:text-amber-400"></i>
+              </div>
+              <h3 class="text-lg font-semibold text-slate-900 dark:text-slate-100 mb-2" data-i18n="features.instantTitle">Instant Formatting</h3>
+              <p class="text-slate-600 dark:text-slate-400 leading-relaxed" data-i18n="features.instantDesc">Lightning fast validation and beautification for even the largest JSON files without lag.</p>
+            </div>
+            <!-- Feature 3 -->
+            <div class="bg-white dark:bg-slate-900/50 border border-slate-200 dark:border-slate-800 p-6 rounded-xl hover:shadow-lg hover:border-brand-200 dark:hover:bg-slate-900 transition-all duration-300">
+              <div class="bg-brand-50 dark:bg-slate-800 w-12 h-12 rounded-lg flex items-center justify-center mb-4 transition-colors duration-300">
+                <i data-lucide="brain-circuit" class="w-6 h-6 text-purple-600 dark:text-purple-400"></i>
+              </div>
+              <h3 class="text-lg font-semibold text-slate-900 dark:text-slate-100 mb-2" data-i18n="features.aiTitle">AI-Powered Repair</h3>
+              <p class="text-slate-600 dark:text-slate-400 leading-relaxed" data-i18n="features.aiDesc">Smarter than regex. Use Gemini AI to intelligently fix broken syntax, missing commas, and bad quotes.</p>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- How It Works -->
+      <section class="py-20 bg-slate-100 dark:bg-slate-900 border-y border-slate-200 dark:border-slate-800 transition-colors duration-300">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div class="text-center mb-12">
+            <h2 class="text-3xl font-bold text-slate-900 dark:text-slate-100" data-i18n="howItWorks.title">How it works</h2>
+            <p class="mt-4 text-slate-600 dark:text-slate-400" data-i18n="howItWorks.subtitle">Simple workflow for complex data.</p>
+          </div>
+
+          <div class="grid grid-cols-1 md:grid-cols-3 gap-12">
+            <!-- Step 1 -->
+            <div class="relative flex flex-col items-center text-center group">
+              <div class="hidden md:block absolute top-8 left-1/2 w-full h-0.5 bg-slate-200 dark:bg-slate-800 -z-10"></div>
+              <div class="w-16 h-16 bg-white dark:bg-brand-900/20 border-2 border-brand-200 dark:border-brand-500/30 rounded-full flex items-center justify-center text-xl font-bold text-brand-600 dark:text-brand-400 mb-6 backdrop-blur-sm shadow-sm dark:shadow-none z-10 transition-colors duration-300">01</div>
+              <h3 class="text-xl font-semibold text-slate-800 dark:text-slate-200 mb-3" data-i18n="howItWorks.step1Title">Paste Raw Data</h3>
+              <p class="text-slate-600 dark:text-slate-400 max-w-xs" data-i18n="howItWorks.step1Desc">Drop your minified, messy, or broken JSON text into the left editor panel.</p>
+            </div>
+            <!-- Step 2 -->
+            <div class="relative flex flex-col items-center text-center group">
+              <div class="hidden md:block absolute top-8 left-1/2 w-full h-0.5 bg-slate-200 dark:bg-slate-800 -z-10"></div>
+              <div class="w-16 h-16 bg-white dark:bg-brand-900/20 border-2 border-brand-200 dark:border-brand-500/30 rounded-full flex items-center justify-center text-xl font-bold text-brand-600 dark:text-brand-400 mb-6 backdrop-blur-sm shadow-sm dark:shadow-none z-10 transition-colors duration-300">02</div>
+              <h3 class="text-xl font-semibold text-slate-800 dark:text-slate-200 mb-3" data-i18n="howItWorks.step2Title">Format or Repair</h3>
+              <p class="text-slate-600 dark:text-slate-400 max-w-xs" data-i18n="howItWorks.step2Desc">Click 'Validate & Format' to organize. If there are errors, use 'AI Repair' to fix them instantly.</p>
+            </div>
+            <!-- Step 3 -->
+            <div class="relative flex flex-col items-center text-center group">
+              <div class="w-16 h-16 bg-white dark:bg-brand-900/20 border-2 border-brand-200 dark:border-brand-500/30 rounded-full flex items-center justify-center text-xl font-bold text-brand-600 dark:text-brand-400 mb-6 backdrop-blur-sm shadow-sm dark:shadow-none z-10 transition-colors duration-300">03</div>
+              <h3 class="text-xl font-semibold text-slate-800 dark:text-slate-200 mb-3" data-i18n="howItWorks.step3Title">Copy Result</h3>
+              <p class="text-slate-600 dark:text-slate-400 max-w-xs" data-i18n="howItWorks.step3Desc">Grab your clean, valid JSON from the right panel, ready for production use.</p>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- FAQ -->
+      <section class="py-20 bg-slate-50 dark:bg-slate-950 transition-colors duration-300">
+        <div class="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8">
+          <h2 class="text-2xl font-bold text-slate-900 dark:text-slate-100 mb-8 text-center" data-i18n="faq.title">Frequently Asked Questions</h2>
+          <div class="space-y-4">
+            <div class="border border-slate-200 dark:border-slate-800 rounded-lg bg-white dark:bg-slate-900/30 overflow-hidden shadow-sm dark:shadow-none transition-colors duration-300">
+              <div class="p-4 md:p-6">
+                <h3 class="font-semibold text-slate-800 dark:text-slate-200" data-i18n="faq.q1">Is my JSON data safe?</h3>
+                <p class="mt-3 text-slate-600 dark:text-slate-400 text-sm leading-relaxed" data-i18n="faq.a1">Yes. Standard formatting runs entirely in your browser. Your data is never sent to a server unless you explicitly click the 'AI Repair' button.</p>
+              </div>
+            </div>
+            <div class="border border-slate-200 dark:border-slate-800 rounded-lg bg-white dark:bg-slate-900/30 overflow-hidden shadow-sm dark:shadow-none transition-colors duration-300">
+              <div class="p-4 md:p-6">
+                <h3 class="font-semibold text-slate-800 dark:text-slate-200" data-i18n="faq.q2">What is the file size limit?</h3>
+                <p class="mt-3 text-slate-600 dark:text-slate-400 text-sm leading-relaxed" data-i18n="faq.a2">Since processing is client-side, it depends on your browser's memory. Typically, files up to 10MB handle smoothly.</p>
+              </div>
+            </div>
+            <div class="border border-slate-200 dark:border-slate-800 rounded-lg bg-white dark:bg-slate-900/30 overflow-hidden shadow-sm dark:shadow-none transition-colors duration-300">
+              <div class="p-4 md:p-6">
+                <h3 class="font-semibold text-slate-800 dark:text-slate-200" data-i18n="faq.q3">Can I use this offline?</h3>
+                <p class="mt-3 text-slate-600 dark:text-slate-400 text-sm leading-relaxed" data-i18n="faq.a3">The basic formatter works offline. AI Repair requires an internet connection.</p>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+    </main>
+
+    <!-- Footer -->
+    <footer class="bg-slate-50 dark:bg-slate-950 border-t border-slate-200 dark:border-slate-900 py-8 transition-colors duration-300">
+      <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex flex-col md:flex-row justify-between items-center gap-4">
+        <div class="text-slate-500 dark:text-slate-500 text-sm">
+          &copy; <span id="year"></span> <span data-i18n="footer.rights">JSON Architect.</span> <span data-i18n="footer.builtWith">Built with Vanilla JS & Gemini.</span>
+        </div>
+        <div class="flex gap-6 text-sm font-medium text-slate-500 dark:text-slate-400">
+          <a href="#" class="hover:text-brand-600 dark:hover:text-brand-400 transition-colors" data-i18n="footer.privacy">Privacy</a>
+          <a href="#" class="hover:text-brand-600 dark:hover:text-brand-400 transition-colors" data-i18n="footer.terms">Terms</a>
+          <a href="https://github.com" class="hover:text-brand-600 dark:hover:text-brand-400 transition-colors" data-i18n="footer.github">GitHub</a>
+        </div>
+      </div>
+    </footer>
+
+    <script type="module">
+      import { GoogleGenAI } from "@google/genai";
+
+      // --- Translations ---
+      const translations = {
+        en: {
+          header: { titleSuffix: "Architect" },
+          hero: { 
+            titleStart: "Format JSON", 
+            titleEnd: "Instantly", 
+            subtitle: "Validate, minify, and beautify your JSON data. Featuring AI-powered repair for broken syntax." 
+          },
+          editor: {
+            beautify: "Validate & Format",
+            minify: "Minify",
+            repair: "AI Repair",
+            upload: "Upload",
+            clear: "Clear",
+            inputLabel: "INPUT",
+            outputLabel: "OUTPUT",
+            inputPlaceholder: "Paste your JSON here...",
+            outputPlaceholder: "Formatted output will appear here...",
+            errorInvalid: "Invalid JSON",
+            errorRepairFailed: "AI could not repair this JSON.",
+            repairSuccess: "JSON repaired successfully"
+          },
+          features: {
+            secureTitle: "Private & Secure",
+            secureDesc: "Processing happens right in your browser. Your data never leaves your device unless you opt-in for AI repair.",
+            instantTitle: "Instant Formatting",
+            instantDesc: "Lightning fast validation and beautification for even the largest JSON files without lag.",
+            aiTitle: "AI-Powered Repair",
+            aiDesc: "Smarter than regex. Use Gemini AI to intelligently fix broken syntax, missing commas, and bad quotes."
+          },
+          howItWorks: {
+            title: "How it works",
+            subtitle: "Simple workflow for complex data.",
+            step1Title: "Paste Raw Data",
+            step1Desc: "Drop your minified, messy, or broken JSON text into the left editor panel.",
+            step2Title: "Format or Repair",
+            step2Desc: "Click 'Validate & Format' to organize. If there are errors, use 'AI Repair' to fix them instantly.",
+            step3Title: "Copy Result",
+            step3Desc: "Grab your clean, valid JSON from the right panel, ready for production use."
+          },
+          faq: {
+            title: "Frequently Asked Questions",
+            q1: "Is my JSON data safe?",
+            a1: "Yes. Standard formatting runs entirely in your browser. Your data is never sent to a server unless you explicitly click the 'AI Repair' button.",
+            q2: "What is the file size limit?",
+            a2: "Since processing is client-side, it depends on your browser's memory. Typically, files up to 10MB handle smoothly.",
+            q3: "Can I use this offline?",
+            a3: "The basic formatter works offline. AI Repair requires an internet connection."
+          },
+          footer: {
+            rights: "JSON Architect.",
+            builtWith: "Built with Vanilla JS & Gemini.",
+            privacy: "Privacy",
+            terms: "Terms",
+            github: "GitHub"
+          }
+        },
+        es: {
+          header: { titleSuffix: "Architect" },
+          hero: { 
+            titleStart: "Formatear JSON", 
+            titleEnd: "al Instante", 
+            subtitle: "Valida, minifica y embellece tus datos JSON. Incluye reparación por IA para sintaxis rota." 
+          },
+          editor: {
+            beautify: "Validar y Formatear",
+            minify: "Minificar",
+            repair: "Reparar con IA",
+            upload: "Subir",
+            clear: "Limpiar",
+            inputLabel: "ENTRADA",
+            outputLabel: "SALIDA",
+            inputPlaceholder: "Pega tu JSON aquí...",
+            outputPlaceholder: "El resultado formateado aparecerá aquí...",
+            errorInvalid: "JSON Inválido",
+            errorRepairFailed: "La IA no pudo reparar este JSON.",
+            repairSuccess: "JSON reparado exitosamente"
+          },
+          features: {
+            secureTitle: "Privado y Seguro",
+            secureDesc: "El procesamiento ocurre en tu navegador. Tus datos nunca salen de tu dispositivo a menos que elijas usar la reparación por IA.",
+            instantTitle: "Formato Instantáneo",
+            instantDesc: "Validación y embellecimiento ultrarrápidos incluso para los archivos JSON más grandes sin retrasos.",
+            aiTitle: "Reparación con IA",
+            aiDesc: "Más inteligente que regex. Usa Gemini AI para corregir inteligentemente sintaxis rota, comas faltantes y comillas incorrectas."
+          },
+          howItWorks: {
+            title: "Cómo funciona",
+            subtitle: "Flujo de trabajo simple para datos complejos.",
+            step1Title: "Pega Datos Crudos",
+            step1Desc: "Arrastra tu texto JSON minificado, desordenado o roto en el panel izquierdo.",
+            step2Title: "Formatea o Repara",
+            step2Desc: "Haz clic en 'Validar y Formatear' para organizar. Si hay errores, usa 'Reparar con IA' para corregirlos al instante.",
+            step3Title: "Copia el Resultado",
+            step3Desc: "Toma tu JSON limpio y válido del panel derecho, listo para usar en producción."
+          },
+          faq: {
+            title: "Preguntas Frecuentes",
+            q1: "¿Mis datos JSON están seguros?",
+            a1: "Sí. El formato estándar se ejecuta completamente en tu navegador usando JavaScript. Tus datos nunca se envían a un servidor a menos que hagas clic explícitamente en el botón 'Reparar con IA'.",
+            q2: "¿Cuál es el límite de tamaño de archivo?",
+            a2: "Dado que el procesamiento es del lado del cliente, depende de la memoria de tu navegador. Típicamente, los archivos de hasta 10MB se manejan sin problemas.",
+            q3: "¿Puedo usar esto sin conexión?",
+            a3: "El formateador básico funciona sin conexión una vez cargada la página. La función de Reparación por IA requiere una conexión a internet activa para contactar con la API de Gemini."
+          },
+          footer: {
+            rights: "JSON Architect.",
+            builtWith: "Construido con Vanilla JS & Gemini.",
+            privacy: "Privacidad",
+            terms: "Términos",
+            github: "GitHub"
+          }
+        }
+      };
+
+      // --- State & Initialization ---
+      const state = {
+        lang: 'en',
+        theme: localStorage.getItem('theme') || (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light'),
+        input: '',
+        errorLine: null
+      };
+
+      // --- DOM Elements ---
+      const els = {
+        inputText: document.getElementById('input-textarea'),
+        inputHighlight: document.getElementById('input-highlight'),
+        inputPlaceholder: document.getElementById('input-placeholder'),
+        outputText: document.getElementById('output-textarea'),
+        outputHighlight: document.getElementById('output-highlight'),
+        outputPlaceholder: document.getElementById('output-placeholder'),
+        errorBanner: document.getElementById('error-banner'),
+        errorMessage: document.getElementById('error-message'),
+        btnFormat: document.getElementById('btn-format'),
+        btnMinify: document.getElementById('btn-minify'),
+        btnRepair: document.getElementById('btn-repair'),
+        btnUpload: document.getElementById('btn-upload'),
+        fileUpload: document.getElementById('file-upload'),
+        btnClear: document.getElementById('btn-clear'),
+        btnCopy: document.getElementById('btn-copy'),
+        btnTheme: document.getElementById('btn-theme'),
+        themeIcon: document.getElementById('theme-icon'),
+        btnLang: document.getElementById('btn-lang'),
+        langLabel: document.getElementById('lang-label'),
+        yearSpan: document.getElementById('year'),
+        iconRepair: document.getElementById('icon-repair'),
+        iconRepairLoading: document.getElementById('icon-repair-loading')
+      };
+
+      els.yearSpan.textContent = new Date().getFullYear();
+
+      // --- Logic: Syntax Highlighting ---
+      function highlightCode(code, container, errorLine = null) {
+        if (!code) {
+          container.innerHTML = '';
+          return;
+        }
+
+        const lines = code.split('\n');
+        const html = lines.map((line, lineIndex) => {
+          const tokenRegex = /("(\\u[a-zA-Z0-9]{4}|\\[^u]|[^\\"])*"(\s*:)?|\b(true|false|null)\b|-?\d+(?:\.\d*)?(?:[eE][+\-]?\d+)?|[\[\]\{\},:])/g;
+          
+          let result = '';
+          let lastIndex = 0;
+          let match;
+
+          while ((match = tokenRegex.exec(line)) !== null) {
+            // Text before token
+            if (match.index > lastIndex) {
+               result += `<span class="text-slate-800 dark:text-slate-300">${line.substring(lastIndex, match.index)}</span>`;
+            }
+
+            const text = match[0];
+            let cls = "text-slate-500 dark:text-slate-500"; 
+
+            if (text.startsWith('"')) {
+              if (text.trim().endsWith(':')) {
+                cls = "text-violet-700 dark:text-violet-400 font-semibold"; // Key
+              } else {
+                cls = "text-emerald-600 dark:text-emerald-400"; // String
+              }
+            } else if (/^(true|false|null)$/.test(text)) {
+              cls = "text-rose-600 dark:text-rose-400 font-medium"; // Boolean/Null
+            } else if (/^-?\d/.test(text)) {
+              cls = "text-amber-600 dark:text-amber-400"; // Number
+            }
+
+            result += `<span class="${cls}">${text}</span>`;
+            lastIndex = tokenRegex.lastIndex;
+          }
+
+          if (lastIndex < line.length) {
+            result += `<span class="text-slate-800 dark:text-slate-300">${line.substring(lastIndex)}</span>`;
+          }
+
+          if (result === '') result = '<br>'; // Handle empty lines
+
+          const errorClass = errorLine === lineIndex ? 'bg-red-500/20 dark:bg-red-500/30 relative' : 'relative';
+          const errorMarker = errorLine === lineIndex ? '<div class="absolute left-0 top-0 bottom-0 w-1 bg-red-500"></div>' : '';
+
+          return `<div class="${errorClass} px-4">${errorMarker}${result}</div>`;
+        }).join('');
+
+        container.innerHTML = html;
+      }
+
+      // --- Logic: Validation & Formatting ---
+      function getLineFromIndex(text, index) {
+        if (!text) return 0;
+        return text.substring(0, index).split('\n').length - 1;
+      }
+
+      function validateAndFormat(minify = false) {
+        const jsonString = els.inputText.value;
+        state.input = jsonString;
+
+        if (!jsonString.trim()) {
+          els.outputText.value = '';
+          highlightCode('', els.outputHighlight);
+          els.errorBanner.classList.add('hidden');
+          els.btnRepair.disabled = true;
+          state.errorLine = null;
+          highlightCode(state.input, els.inputHighlight, null);
+          els.outputPlaceholder.style.display = 'block';
+          return;
+        }
+
+        try {
+          const parsed = JSON.parse(jsonString);
+          const formatted = JSON.stringify(parsed, null, minify ? 0 : 2);
+          
+          els.outputText.value = formatted;
+          highlightCode(formatted, els.outputHighlight);
+          els.errorBanner.classList.add('hidden');
+          els.btnRepair.disabled = true;
+          state.errorLine = null;
+          highlightCode(state.input, els.inputHighlight, null); // clear error highlights
+          els.outputPlaceholder.style.display = 'none';
+
+        } catch (err) {
+          const t = translations[state.lang];
+          const msg = err.message || t.editor.errorInvalid;
+          els.errorMessage.textContent = msg;
+          els.errorBanner.classList.remove('hidden');
+          els.outputText.value = '';
+          highlightCode('', els.outputHighlight);
+          els.btnRepair.disabled = false;
+          els.outputPlaceholder.style.display = 'block';
+
+          // Find error line
+          let line = null;
+          const posMatch = msg.match(/position (\d+)/);
+          const lineMatch = msg.match(/line (\d+)/);
+          
+          if (posMatch) {
+            line = getLineFromIndex(jsonString, parseInt(posMatch[1], 10));
+          } else if (lineMatch) {
+            line = parseInt(lineMatch[1], 10) - 1;
+          }
+          
+          state.errorLine = line;
+          highlightCode(state.input, els.inputHighlight, line);
+        }
+      }
+
+      // --- Logic: AI Repair ---
+      async function repairJson() {
+        els.btnRepair.disabled = true;
+        els.iconRepair.classList.add('hidden');
+        els.iconRepairLoading.classList.remove('hidden');
+
+        try {
+          const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+          const response = await ai.models.generateContent({
+            model: 'gemini-2.5-flash',
+            contents: `Fix the following JSON string. It may have syntax errors like missing quotes, trailing commas, or invalid formatting. Return ONLY the valid, minified JSON string. Do not wrap it in markdown code blocks. Broken JSON: ${state.input}`,
+            config: { temperature: 0.1 }
+          });
+
+          let text = response.text?.trim() || '';
+          if (text.startsWith('```json')) text = text.replace(/^```json/, '').replace(/```$/, '');
+          else if (text.startsWith('```')) text = text.replace(/^```/, '').replace(/```$/, '');
+          
+          text = text.trim();
+          els.inputText.value = text;
+          validateAndFormat(false);
+          
+        } catch (error) {
+          console.error(error);
+          const t = translations[state.lang];
+          els.errorMessage.textContent = t.editor.errorRepairFailed;
+          els.errorBanner.classList.remove('hidden');
+        } finally {
+          els.iconRepair.classList.remove('hidden');
+          els.iconRepairLoading.classList.add('hidden');
+        }
+      }
+
+      // --- Logic: UI Updates ---
+      function updateTheme() {
+        if (state.theme === 'dark') {
+          document.documentElement.classList.add('dark');
+          els.themeIcon.setAttribute('data-lucide', 'sun');
+        } else {
+          document.documentElement.classList.remove('dark');
+          els.themeIcon.setAttribute('data-lucide', 'moon');
+        }
+        localStorage.setItem('theme', state.theme);
+        lucide.createIcons();
+      }
+
+      function updateLanguage() {
+        const t = translations[state.lang];
+        els.langLabel.textContent = state.lang.toUpperCase();
+        
+        // Update all elements with data-i18n
+        document.querySelectorAll('[data-i18n]').forEach(el => {
+          const key = el.getAttribute('data-i18n');
+          const keys = key.split('.');
+          let val = t;
+          for (const k of keys) val = val?.[k];
+          if (val) el.textContent = val;
+        });
+
+        // Specific placeholder updates
+        els.inputPlaceholder.textContent = t.editor.inputPlaceholder;
+        els.outputPlaceholder.textContent = t.editor.outputPlaceholder;
+      }
+
+      // --- Event Listeners ---
+      
+      // Input Sync
+      els.inputText.addEventListener('input', (e) => {
+        state.input = e.target.value;
+        highlightCode(state.input, els.inputHighlight, state.errorLine);
+        els.inputPlaceholder.style.display = state.input ? 'none' : 'block';
+        // Clear errors on type
+        if (!state.input) {
+          els.errorBanner.classList.add('hidden');
+          state.errorLine = null;
+        }
+      });
+
+      els.inputText.addEventListener('scroll', () => {
+        els.inputHighlight.scrollTop = els.inputText.scrollTop;
+        els.inputHighlight.scrollLeft = els.inputText.scrollLeft;
+      });
+
+      els.outputText.addEventListener('scroll', () => {
+        els.outputHighlight.scrollTop = els.outputText.scrollTop;
+        els.outputHighlight.scrollLeft = els.outputText.scrollLeft;
+      });
+
+      // Paste Handling
+      els.inputText.addEventListener('paste', () => {
+        setTimeout(() => validateAndFormat(false), 50);
+      });
+
+      // Buttons
+      els.btnFormat.addEventListener('click', () => validateAndFormat(false));
+      els.btnMinify.addEventListener('click', () => validateAndFormat(true));
+      els.btnRepair.addEventListener('click', repairJson);
+      els.btnClear.addEventListener('click', () => {
+        els.inputText.value = '';
+        els.outputText.value = '';
+        state.input = '';
+        highlightCode('', els.inputHighlight);
+        highlightCode('', els.outputHighlight);
+        els.errorBanner.classList.add('hidden');
+        state.errorLine = null;
+        els.btnRepair.disabled = true;
+        els.inputPlaceholder.style.display = 'block';
+        els.outputPlaceholder.style.display = 'block';
+      });
+
+      els.btnCopy.addEventListener('click', () => {
+        if (!els.outputText.value) return;
+        navigator.clipboard.writeText(els.outputText.value);
+        document.getElementById('icon-copy').classList.add('hidden');
+        document.getElementById('icon-check').classList.remove('hidden');
+        setTimeout(() => {
+          document.getElementById('icon-copy').classList.remove('hidden');
+          document.getElementById('icon-check').classList.add('hidden');
+        }, 2000);
+      });
+
+      // Upload
+      els.btnUpload.addEventListener('click', () => els.fileUpload.click());
+      els.fileUpload.addEventListener('change', (e) => {
+        const file = e.target.files?.[0];
+        if (!file) return;
+        const reader = new FileReader();
+        reader.onload = (ev) => {
+          els.inputText.value = ev.target.result;
+          state.input = ev.target.result;
+          els.inputPlaceholder.style.display = 'none';
+          validateAndFormat(false);
+        };
+        reader.readAsText(file);
+        e.target.value = '';
+      });
+
+      // Theme & Lang
+      els.btnTheme.addEventListener('click', () => {
+        state.theme = state.theme === 'dark' ? 'light' : 'dark';
+        updateTheme();
+      });
+
+      els.btnLang.addEventListener('click', () => {
+        state.lang = state.lang === 'en' ? 'es' : 'en';
+        updateLanguage();
+      });
+
+      // Init
+      updateTheme();
+      updateLanguage();
+      lucide.createIcons();
+    </script>
   </body>
 </html>
